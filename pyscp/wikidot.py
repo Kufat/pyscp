@@ -355,6 +355,7 @@ class Wiki(pyscp.core.Wiki):
         super().__init__(site)
         self.req = InsistentRequest()
         self._cookies = {'wikidot_token7': '123456'} # Old default
+        self._headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
 
     def __repr__(self):
         return '{}.{}({})'.format(
@@ -384,7 +385,7 @@ class Wiki(pyscp.core.Wiki):
                 # in the payload and in the cookie
                 wikidot_token7=self._wd7(),
                 **kwargs),
-            headers={'Content-Type': 'application/x-www-form-urlencoded;'},
+            headers=self._headers | {'Content-Type': 'application/x-www-form-urlencoded;'},
             cookies=self._cookies)
         response = response_raw.json()
         if response['status'] != 'ok':
@@ -458,7 +459,8 @@ class Wiki(pyscp.core.Wiki):
                 login=username,
                 password=password,
                 action='Login2Action',
-                event='login'))
+                event='login'),
+            headers=self._headers)
         logging.debug("Auth req: %s" % res.text)
         self._cookies = res.cookies
         return res
