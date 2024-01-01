@@ -274,7 +274,7 @@ class Page(pyscp.core.Page):
             url,
             data=kwargs,
             files={'userfile': (name, data)},
-            cookies={'wikidot_token7': '123456'})
+            cookies=self._wiki._cookies)
         response = bs4.BeautifulSoup(response.text, 'lxml')
         status = response.find(id='status').text
         message = response.find(id='message').text
@@ -354,6 +354,7 @@ class Wiki(pyscp.core.Wiki):
     def __init__(self, site):
         super().__init__(site)
         self.req = InsistentRequest()
+        self._cookies = {'wikidot_token7': '123456'} # Old default
 
     def __repr__(self):
         return '{}.{}({})'.format(
@@ -374,20 +375,22 @@ class Wiki(pyscp.core.Wiki):
         Almost all other methods of the class are using _module in one way
         or another.
         """
-        response = self.req.post(
+        response_raw = self.req.post(
             self.site + '/ajax-module-connector.php',
             data=dict(
                 pageId=kwargs.get('page_id', None),  # fuck wikidot
                 moduleName=_name,
                 # token7 can be any 6-digit number, as long as it's the same
                 # in the payload and in the cookie
-                wikidot_token7='123456',
+                wikidot_token7=self._wd7(),
                 **kwargs),
             headers={'Content-Type': 'application/x-www-form-urlencoded;'},
-            cookies={'wikidot_token7': '123456'}).json()
+            cookies=self._cookies)
+        response = response_raw.json()
         if response['status'] != 'ok':
             log.error(response)
             raise RuntimeError(response.get('message') or response['status'])
+        self._cookies = response.cookies
         return response
 
     def _pager(self, _name, _key, _update=None, **kwargs):
@@ -440,19 +443,25 @@ class Wiki(pyscp.core.Wiki):
             page._body = data
             yield page
 
+    def _wd7(self):
+        return self._cookies['wikidot_token7']
+
     ###########################################################################
     # Public Methods
     ###########################################################################
 
     def auth(self, username, password):
         """Login to wikidot with the given username/password pair."""
-        return self.req.post(
+        res = self.req.post(
             'https://www.wikidot.com/default--flow/login__LoginPopupScreen',
             data=dict(
                 login=username,
                 password=password,
                 action='Login2Action',
                 event='login'))
+        logging.debug("Auth req: %s" % res.text)
+        self._cookies = res.cookies
+        return res
 
     def list_categories(self):
         """Return forum categories."""
@@ -495,9 +504,9 @@ class Wiki(pyscp.core.Wiki):
                 to_user_id=user_id,
                 action='DashboardMessageAction',
                 event='send',
-                wikidot_token7='123456'),
+                wikidot_token7=self._wd7()),
             headers={'Content-Type': 'application/x-www-form-urlencoded;'},
-            cookies={'wikidot_token7': '123456'}).json()
+            cookies=self._cookies).json()
 
     ###########################################################################
     # SCP-Wiki Specific Methods

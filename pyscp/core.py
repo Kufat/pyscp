@@ -379,7 +379,7 @@ class Wiki(metaclass=abc.ABCMeta):
         netloc = parsed.netloc if parsed.netloc else parsed.path
         if '.' not in netloc:
             netloc += '.wikidot.com'
-        self.site = urllib.parse.urlunparse(['http', netloc, '', '', '', ''])
+        self.site = urllib.parse.urlunparse(['https' if 'https' in site else 'http', netloc, '', '', '', ''])
         self._title_data = {}
 
     def __call__(self, name):
